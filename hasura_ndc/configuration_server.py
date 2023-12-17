@@ -22,7 +22,7 @@ async def start_configuration_server(connector: Connector, options: Configuratio
 
     @app.post("/")
     async def update_configuration(request: Request):
-        raw_configuration = await request.json()
+        raw_configuration = connector.raw_configuration_type(**await request.json())
         return await connector.update_configuration(raw_configuration)
 
     @app.get("/schema")
@@ -31,7 +31,7 @@ async def start_configuration_server(connector: Connector, options: Configuratio
 
     @app.post("/validate")
     async def validate_configuration(request: Request) -> ValidateResponse:
-        raw_configuration = await request.json()
+        raw_configuration = connector.raw_configuration_type(**await request.json())
         resolved_configuration = await connector.validate_raw_configuration(raw_configuration)
         schema = await connector.get_schema(resolved_configuration)
         capabilities = connector.get_capabilities(resolved_configuration)

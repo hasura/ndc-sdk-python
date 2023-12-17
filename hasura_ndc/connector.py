@@ -1,5 +1,4 @@
 from typing import Generic, TypeVar, Any, Dict
-from pydantic.generics import GenericModel
 from typing import Optional
 from abc import ABC, abstractmethod
 from hasura_ndc.models import (
@@ -14,28 +13,17 @@ from hasura_ndc.models import (
 from pydantic import BaseModel
 
 # Define type variables for RawConfiguration, Configuration, and State
-RawConfigurationType = TypeVar('RawConfigurationType')
-ConfigurationType = TypeVar('ConfigurationType')
-StateType = TypeVar('StateType')
+RawConfigurationType = TypeVar('RawConfigurationType', bound=BaseModel)
+ConfigurationType = TypeVar('ConfigurationType', bound=BaseModel)
+StateType = TypeVar('StateType', bound=BaseModel)
 
 
-class RawConfiguration(BaseModel):
-    # Define fields for RawConfiguration
-    pass
+class Connector(ABC, Generic[RawConfigurationType, ConfigurationType, StateType]):
 
-
-class Configuration(BaseModel):
-    # Define fields for Configuration
-    pass
-
-
-class State(BaseModel):
-    # Define fields for State
-    pass
-
-
-# Connector interface as a generic abstract base class
-class Connector(GenericModel, Generic[RawConfigurationType, ConfigurationType, StateType], ABC):
+    def __init__(self, raw_configuration_type, configuration_type, state_type):
+        self.raw_configuration_type = raw_configuration_type
+        self.configuration_type = configuration_type
+        self.state_type = state_type
 
     @abstractmethod
     def get_raw_configuration_schema(self) -> Dict[str, Any]:

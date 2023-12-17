@@ -2,15 +2,11 @@ from fastapi import FastAPI, status, Request, Response, Depends
 from fastapi.security import APIKeyHeader
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
-from typing import TypeVar, Any
+from typing import Any
 import uvicorn
 import json
-from hasura_ndc.connector import Connector
-from hasura_ndc.models import CapabilitiesResponse, SchemaResponse, QueryResponse, ExplainResponse
-
-RawConfiguration = TypeVar('RawConfiguration')
-Configuration = TypeVar('Configuration')
-State = TypeVar('State')
+from hasura_ndc.connector import Connector, RawConfigurationType, ConfigurationType, StateType
+from hasura_ndc.models import CapabilitiesResponse, SchemaResponse, QueryResponse, ExplainResponse, MutationResponse
 
 
 class ServerOptions(BaseModel):
@@ -23,10 +19,11 @@ class ServerOptions(BaseModel):
     pretty_print_logs: str
 
 
-async def start_server(connector: Connector, options: ServerOptions):
+async def start_server(connector: Connector[RawConfigurationType, ConfigurationType, StateType],
+                       options: ServerOptions):
     api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
     with open(options.configuration, "r") as f:
-        raw_configuration = json.load(f)
+        raw_configuration = connector.raw_configuration_type(**json.load(f))
     configuration = await connector.validate_raw_configuration(raw_configuration)
     metrics = {}
     state = await connector.try_init_state(configuration, metrics)
@@ -49,7 +46,7 @@ async def start_server(connector: Connector, options: ServerOptions):
 
     @app.get("/capabilities")
     async def get_capabilities() -> CapabilitiesResponse:
-        return connector.get_capabilities(configuration)
+        return await connector.get_capabilities(configuration)
 
     @app.get("/health")
     async def health_check() -> Any:
@@ -72,7 +69,7 @@ async def start_server(connector: Connector, options: ServerOptions):
         return await connector.explain(configuration, state, await request.json())
 
     @app.post("/mutation")
-    async def execute_mutation(request: Request):
+    async def execute_mutation(request: Request) -> MutationResponse:
         return await connector.mutation(configuration, state, await request.json())
 
     @app.exception_handler(Exception)
