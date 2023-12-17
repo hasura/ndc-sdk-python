@@ -6,7 +6,8 @@ from typing import Any
 import uvicorn
 import json
 from hasura_ndc.connector import Connector, RawConfigurationType, ConfigurationType, StateType
-from hasura_ndc.models import CapabilitiesResponse, SchemaResponse, QueryResponse, ExplainResponse, MutationResponse
+from hasura_ndc.models import (CapabilitiesResponse, SchemaResponse, QueryResponse, ExplainResponse, MutationResponse,
+                               QueryRequest, MutationRequest)
 
 
 class ServerOptions(BaseModel):
@@ -62,15 +63,15 @@ async def start_server(connector: Connector[RawConfigurationType, ConfigurationT
 
     @app.post("/query")
     async def execute_query(request: Request) -> QueryResponse:
-        return await connector.query(configuration, state, await request.json())
+        return await connector.query(configuration, state, QueryRequest(**await request.json()))
 
     @app.post("/explain")
     async def explain_query(request: Request) -> ExplainResponse:
-        return await connector.explain(configuration, state, await request.json())
+        return await connector.explain(configuration, state, QueryRequest(**await request.json()))
 
     @app.post("/mutation")
     async def execute_mutation(request: Request) -> MutationResponse:
-        return await connector.mutation(configuration, state, await request.json())
+        return await connector.mutation(configuration, state, MutationRequest(**await request.json()))
 
     @app.exception_handler(Exception)
     async def http_exception_handler(_: Request, e: Exception):
