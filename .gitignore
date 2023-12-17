@@ -3,3 +3,4 @@ dist/
 hasura_ndc.egg-info/
 venv/
 .idea/
+.DS_Store
