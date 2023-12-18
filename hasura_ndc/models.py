@@ -5,244 +5,122 @@ OrderDirection = Literal["asc", "desc"]
 RelationshipType = Literal["object", "array"]
 
 
-class NamedType(BaseModel):
+class RootModel(BaseModel):
+
+    def dict(self, **kwargs):
+        return super().model_dump(**kwargs, exclude_none=True)
+
+
+class Type(RootModel):
     type: str
-    name: str
+    name: Optional[str] = None
+    underlying_type: Optional['Type'] = None
+    element_type: Optional['Type'] = None
 
 
-class NullableType(BaseModel):
+class Aggregate(RootModel):
     type: str
-    underlying_type: 'Type'
+    column: Optional[str] = None
+    distinct: Optional[bool] = None
+    function: Optional[str] = None
 
 
-class ArrayType(BaseModel):
+class Field(RootModel):
     type: str
-    element_type: 'Type'
+    column: Optional[str] = None
+    query: Optional['Query'] = None
+    relationship: Optional[str] = None
+    arguments: Optional[Dict[str, 'RelationshipArgument']] = None
 
 
-Type = Union[NamedType, NullableType, ArrayType]
-
-
-class ColumnCountAggregate(BaseModel):
+class RelationshipArgument(RootModel):
     type: str
-    column: str
-    distinct: bool
+    name: Optional[str] = None
+    value: Optional[object] = None
 
 
-class SingleColumnAggregate(BaseModel):
+class OrderByTarget(RootModel):
     type: str
-    column: str
-    function: str
-
-
-class StarCountAggregate(BaseModel):
-    type: str
-
-
-Aggregate = Union[ColumnCountAggregate, SingleColumnAggregate, StarCountAggregate]
-
-
-class ColumnField(BaseModel):
-    type: str
-    column: str
-
-
-class RelationshipField(BaseModel):
-    type: str
-    query: 'Query'
-    relationship: str
-    arguments: Dict[str, 'RelationshipArgument']
-
-
-Field = Union[ColumnField, RelationshipField]
-
-
-class VariableRelationshipArgument(BaseModel):
-    type: str
-    name: str
-
-
-class LiteralRelationshipArgument(BaseModel):
-    type: str
-    value: object
-
-
-class ColumnRelationshipArgument(BaseModel):
-    type: str
-    name: str
-
-
-RelationshipArgument = Union[VariableRelationshipArgument, LiteralRelationshipArgument, ColumnRelationshipArgument]
-
-
-class OrderByColumn(BaseModel):
-    type: str
-    name: str
+    name: Optional[str] = None
+    column: Optional[str] = None
+    function: Optional[str] = None
     path: List['PathElement']
 
 
-class SingleColumnAggregateOrderBy(BaseModel):
+class Expression(RootModel):
     type: str
-    column: str
-    function: str
-    path: List['PathElement']
+    expressions: Optional[List['Expression']] = None
+    expression: Optional['Expression'] = None
+    column: Optional['ComparisonTarget'] = None
+    operator: Optional[
+        Union['BinaryArrayComparisonOperator', 'BinaryComparisonOperator', 'UnaryComparisonOperator']] = None
+    value: Optional['ComparisonValue'] = None
+    values: Optional[List['ComparisonValue']] = None
+    where: Optional['Expression'] = None
 
 
-class StarCountAggregateOrderBy(BaseModel):
-    type: str
-    path: List['PathElement']
-
-
-OrderByTarget = Union[OrderByColumn, SingleColumnAggregateOrderBy, StarCountAggregateOrderBy]
-
-
-class AndExpression(BaseModel):
-    type: str
-    expressions: List['Expression']
-
-
-class OrExpression(BaseModel):
-    type: str
-    expressions: List['Expression']
-
-
-class NotExpression(BaseModel):
-    type: str
-    expression: 'Expression'
-
-
-class UnaryComparisonOperatorExpression(BaseModel):
-    type: str
-    column: 'ComparisonTarget'
-    operator: 'UnaryComparisonOperator'
-
-
-class BinaryComparisonOperatorExpression(BaseModel):
-    type: str
-    column: 'ComparisonTarget'
-    operator: 'BinaryComparisonOperator'
-    value: 'ComparisonValue'
-
-
-class BinaryArrayComparisonOperatorExpression(BaseModel):
-    type: str
-    column: 'ComparisonTarget'
-    operator: 'BinaryArrayComparisonOperator'
-    values: List['ComparisonValue']
-
-
-class ExistsExpression(BaseModel):
-    type: str
-    in_collection: 'ExistsInCollection'
-    where: 'Expression'
-
-
-Expression = Union[
-    AndExpression, OrExpression, NotExpression, UnaryComparisonOperatorExpression,
-    BinaryComparisonOperatorExpression, BinaryArrayComparisonOperatorExpression, ExistsExpression]
-
-
-class ColumnComparisonTarget(BaseModel):
+class ComparisonTarget(RootModel):
     type: str
     name: str
-    path: List['PathElement']
+    path: Optional[List['PathElement']] = None
 
-
-class RootCollectionColumnComparisonTarget(BaseModel):
-    type: str
-    name: str
-
-
-ComparisonTarget = Union[ColumnComparisonTarget, RootCollectionColumnComparisonTarget]
 
 UnaryComparisonOperator = str  # Only 'is_null' as per the schema
 
 
-class EqualBinaryComparisonOperator(BaseModel):
+class BinaryComparisonOperator(RootModel):
     type: str
+    name: Optional[str] = None
 
 
-class OtherBinaryComparisonOperator(BaseModel):
+class ComparisonValue(RootModel):
     type: str
-    name: str
+    column: Optional['ComparisonTarget'] = None
+    value: Optional[object] = None
+    name: Optional[str] = None
 
-
-BinaryComparisonOperator = Union[EqualBinaryComparisonOperator, OtherBinaryComparisonOperator]
-
-
-class ColumnComparisonValue(BaseModel):
-    type: str
-    column: 'ComparisonTarget'
-
-
-class ScalarComparisonValue(BaseModel):
-    type: str
-    value: object
-
-
-class VariableComparisonValue(BaseModel):
-    type: str
-    name: str
-
-
-ComparisonValue = Union[ColumnComparisonValue, ScalarComparisonValue, VariableComparisonValue]
 
 BinaryArrayComparisonOperator = str  # Only 'in' as per the schema
 
 
-class RelatedExistsInCollection(BaseModel):
+class ExistsInCollection(RootModel):
     type: str
-    relationship: str
+    relationship: Optional[str] = None
+    collection: Optional[str] = None
     arguments: Dict[str, 'RelationshipArgument']
 
 
-class UnrelatedExistsInCollection(BaseModel):
+class Argument(RootModel):
     type: str
-    collection: str
-    arguments: Dict[str, 'RelationshipArgument']
-
-
-ExistsInCollection = Union[RelatedExistsInCollection, UnrelatedExistsInCollection]
-
-
-class VariableArgument(BaseModel):
-    type: str
-    name: str
-
-
-class LiteralArgument(BaseModel):
-    type: str
-    value: object
-
-
-Argument = Union[VariableArgument, LiteralArgument]
+    name: Optional[str] = None
+    value: Optional[object] = None
 
 
 # Continuing from the previous definitions
 
-class OrderByElement(BaseModel):
+class OrderByElement(RootModel):
     order_direction: OrderDirection
     target: OrderByTarget
 
 
-class OrderBy(BaseModel):
+class OrderBy(RootModel):
     elements: List[OrderByElement]
 
 
-class PathElement(BaseModel):
+class PathElement(RootModel):
     relationship: str
     arguments: Dict[str, RelationshipArgument]
     predicate: Expression
 
 
-class Relationship(BaseModel):
+class Relationship(RootModel):
     column_mapping: Dict[str, str]
     relationship_type: RelationshipType
     target_collection: str
     arguments: Dict[str, RelationshipArgument]
 
 
-class RowSet(BaseModel):
+class RowSet(RootModel):
     aggregates: Optional[Dict[str, object]] = None
     rows: Optional[List[Dict[str, 'RowFieldValue']]] = None
 
@@ -250,7 +128,7 @@ class RowSet(BaseModel):
 RowFieldValue = object  # Placeholder for actual field value type
 
 
-class Query(BaseModel):
+class Query(RootModel):
     aggregates: Optional[Dict[str, Aggregate]] = None
     fields: Optional[Dict[str, Field]] = None
     limit: Optional[int] = None
@@ -259,68 +137,68 @@ class Query(BaseModel):
     where: Optional[Expression] = None
 
 
-class MutationOperation(BaseModel):
+class MutationOperation(RootModel):
     type: str
     name: str
     arguments: Dict[str, object]
     fields: Optional[Dict[str, Field]] = None
 
 
-class MutationRequest(BaseModel):
+class MutationRequest(RootModel):
     operations: List[MutationOperation]
     collection_relationships: Dict[str, Relationship]
 
 
-class MutationOperationResults(BaseModel):
+class MutationOperationResults(RootModel):
     affected_rows: int
     returning: Optional[List[Dict[str, RowFieldValue]]] = None
 
 
-class MutationResponse(BaseModel):
+class MutationResponse(RootModel):
     operation_results: List[MutationOperationResults]
 
 
-class ExplainResponse(BaseModel):
+class ExplainResponse(RootModel):
     details: Dict[str, str]
 
 
-class ErrorResponse(BaseModel):
+class ErrorResponse(RootModel):
     message: str
     details: Dict[str, object]
 
 
-class ValidateResponse(BaseModel):
+class ValidateResponse(RootModel):
     schema: 'SchemaResponse'
     capabilities: 'CapabilitiesResponse'
     resolved_configuration: str
 
 
-class CapabilitiesResponse(BaseModel):
+class CapabilitiesResponse(RootModel):
     versions: str
     capabilities: 'Capabilities'
 
 
-class LeafCapability(BaseModel):
+class LeafCapability(RootModel):
     pass
 
 
-class Capabilities(BaseModel):
+class Capabilities(RootModel):
     query: 'QueryCapabilities'
     explain: Optional[LeafCapability] = None
     relationships: Optional['RelationshipCapabilities'] = None
 
 
-class QueryCapabilities(BaseModel):
+class QueryCapabilities(RootModel):
     aggregates: Optional[LeafCapability] = None
     variables: Optional[LeafCapability] = None
 
 
-class RelationshipCapabilities(BaseModel):
+class RelationshipCapabilities(RootModel):
     relation_comparisons: Optional[LeafCapability] = None
     order_by_aggregate: Optional[LeafCapability] = None
 
 
-class SchemaResponse(BaseModel):
+class SchemaResponse(RootModel):
     scalar_types: Dict[str, 'ScalarType']
     object_types: Dict[str, 'ObjectType']
     collections: List['CollectionInfo']
@@ -328,30 +206,30 @@ class SchemaResponse(BaseModel):
     procedures: List['ProcedureInfo']
 
 
-class ScalarType(BaseModel):
+class ScalarType(RootModel):
     aggregate_functions: Dict[str, 'AggregateFunctionDefinition']
     comparison_operators: Dict[str, 'ComparisonOperatorDefinition']
 
 
-class AggregateFunctionDefinition(BaseModel):
+class AggregateFunctionDefinition(RootModel):
     result_type: Type
 
 
-class ComparisonOperatorDefinition(BaseModel):
+class ComparisonOperatorDefinition(RootModel):
     argument_type: Type
 
 
-class ObjectType(BaseModel):
+class ObjectType(RootModel):
     description: Optional[str] = None
     fields: Dict[str, 'ObjectField']
 
 
-class ObjectField(BaseModel):
+class ObjectField(RootModel):
     description: Optional[str] = None
     type: Type
 
 
-class CollectionInfo(BaseModel):
+class CollectionInfo(RootModel):
     name: str
     description: Optional[str] = None
     arguments: Dict[str, 'ArgumentInfo']
@@ -360,35 +238,35 @@ class CollectionInfo(BaseModel):
     foreign_keys: Dict[str, 'ForeignKeyConstraint']
 
 
-class ArgumentInfo(BaseModel):
+class ArgumentInfo(RootModel):
     description: Optional[str] = None
     type: Type
 
 
-class UniquenessConstraint(BaseModel):
+class UniquenessConstraint(RootModel):
     unique_columns: List[str]
 
 
-class ForeignKeyConstraint(BaseModel):
+class ForeignKeyConstraint(RootModel):
     column_mapping: Dict[str, str]
     foreign_collection: str
 
 
-class FunctionInfo(BaseModel):
+class FunctionInfo(RootModel):
     name: str
     description: Optional[str] = None
     arguments: Dict[str, ArgumentInfo]
     result_type: Type
 
 
-class ProcedureInfo(BaseModel):
+class ProcedureInfo(RootModel):
     name: str
     description: Optional[str] = None
     arguments: Dict[str, ArgumentInfo]
     result_type: Type
 
 
-class QueryRequest(BaseModel):
+class QueryRequest(RootModel):
     collection: str
     query: Query
     arguments: Dict[str, Argument]
@@ -399,7 +277,7 @@ class QueryRequest(BaseModel):
 QueryResponse = List[RowSet]  # Based on your TypeScript schema
 
 
-class SchemaRoot(BaseModel):
+class SchemaRoot(RootModel):
     capabilities_response: CapabilitiesResponse
     schema_response: SchemaResponse
     query_request: QueryRequest
