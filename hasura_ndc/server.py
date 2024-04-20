@@ -4,28 +4,27 @@ from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
 from typing import Any
 import uvicorn
-import json
-from hasura_ndc.connector import Connector, RawConfigurationType, ConfigurationType, StateType
-from hasura_ndc.models import (CapabilitiesResponse, SchemaResponse, QueryResponse, ExplainResponse, MutationResponse,
-                               QueryRequest, MutationRequest)
+from hasura_ndc.connector import Connector, ConfigurationType, StateType
+from models import (CapabilitiesResponse, SchemaResponse, QueryResponse, ExplainResponse, MutationResponse,
+                    QueryRequest, MutationRequest)
+from opentelemetry import trace
+import hasura_ndc.instrumentation as instrumentation
+
+tracer = trace.get_tracer("ndc-sdk-python.server")
 
 
 class ServerOptions(BaseModel):
     configuration: str
     port: int
     service_token_secret: str
-    oltp_endpoint: str
-    service_name: str
     log_level: str
     pretty_print_logs: str
 
 
-async def start_server(connector: Connector[RawConfigurationType, ConfigurationType, StateType],
+async def start_server(connector: Connector[ConfigurationType, StateType],
                        options: ServerOptions):
     api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
-    with open(options.configuration, "r") as f:
-        raw_configuration = connector.raw_configuration_type(**json.load(f))
-    configuration = await connector.validate_raw_configuration(raw_configuration)
+    configuration = await connector.parse_configuration(configuration_dir=options.configuration)
     metrics = {}
     state = await connector.try_init_state(configuration, metrics)
 
@@ -58,20 +57,57 @@ async def start_server(connector: Connector[RawConfigurationType, ConfigurationT
         return await connector.fetch_metrics(configuration, state)
 
     @app.get("/schema")
-    async def get_schema() -> SchemaResponse:
-        return await connector.get_schema(configuration)
+    async def get_schema(request: Request) -> SchemaResponse:
+        return await instrumentation.with_active_span(
+            tracer,
+            "getSchema",
+            lambda span: connector.get_schema(configuration),
+            headers=dict(request.headers)
+        )
 
     @app.post("/query")
     async def execute_query(request: Request) -> QueryResponse:
-        return await connector.query(configuration, state, QueryRequest(**await request.json()))
+        headers = dict(request.headers)
+        request_data = await request.json()
+        return await instrumentation.with_active_span(
+            tracer,
+            "query",
+            lambda span: connector.query(configuration, state, QueryRequest(**request_data)),
+            headers=headers
+        )
 
-    @app.post("/explain")
-    async def explain_query(request: Request) -> ExplainResponse:
-        return await connector.explain(configuration, state, QueryRequest(**await request.json()))
+    @app.post("/query/explain")
+    async def query_explain(request: Request) -> ExplainResponse:
+        headers = dict(request.headers)
+        request_data = await request.json()
+        return await instrumentation.with_active_span(
+            tracer,
+            "query_explain",
+            lambda span: connector.query(configuration, state, QueryRequest(**request_data)),
+            headers=headers
+        )
 
     @app.post("/mutation")
     async def execute_mutation(request: Request) -> MutationResponse:
-        return await connector.mutation(configuration, state, MutationRequest(**await request.json()))
+        headers = dict(request.headers)
+        request_data = await request.json()
+        return await instrumentation.with_active_span(
+            tracer,
+            "mutation",
+            lambda span: connector.mutation(configuration, state, MutationRequest(**request_data)),
+            headers=headers
+        )
+
+    @app.post("/mutation/explain")
+    async def mutation_explain(request: Request) -> ExplainResponse:
+        headers = dict(request.headers)
+        request_data = await request.json()
+        return await instrumentation.with_active_span(
+            tracer,
+            "mutation_explain",
+            lambda span: connector.mutation_explain(configuration, state, MutationRequest(**request_data)),
+            headers=headers
+        )
 
     @app.exception_handler(Exception)
     async def http_exception_handler(_: Request, e: Exception):
