@@ -16,6 +16,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import Status, StatusCode
 from opentelemetry.propagate import get_global_textmap
+import asyncio
 import os
 
 sdk = None
@@ -85,23 +86,33 @@ def is_initialized():
 async def with_active_span(tracer, name, func, attributes=None, headers: dict = None):
     if headers is None:
         headers = {}
+    if attributes is None:
+        attributes = {}
+
+    attributes = {**USER_VISIBLE_SPAN_ATTRIBUTE, **attributes}
 
     # Extract the trace context from the headers
     ctx = get_global_textmap().extract(headers)
 
+    # Get the current span context
+    current_span = trace.get_current_span()
+    if current_span.is_recording():
+        ctx = trace.set_span_in_context(current_span, ctx)
+
+    def handle_error(span, err):
+        if isinstance(err, Exception) or isinstance(err, str):
+            span.record_exception(err)
+        span.set_status(Status(StatusCode.ERROR))
+
     # Start a new span, passing the extracted context
     with tracer.start_as_current_span(name, attributes=attributes, context=ctx) as span:
-        async def handle_error(exc):
-            if isinstance(exc, (Exception, str)):
-                span.record_exception(exc)
-                span.set_status(Status(StatusCode.ERROR))
-                span.end()
-
         try:
-            retval = await func(span)
+            retval = func(span)
+            if asyncio.iscoroutine(retval):
+                retval = await retval
             return retval
         except Exception as e:
-            await handle_error(e)
+            handle_error(span, e)
             raise
         finally:
             span.end()
