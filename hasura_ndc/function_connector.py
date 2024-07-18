@@ -213,7 +213,7 @@ class FunctionConnector(Connector[Configuration, State]):
         for k, v in request.arguments.items():
             if v.type == "literal":
                 arg_type = signature.parameters[k].annotation
-                if issubclass(arg_type, BaseModel):
+                if isinstance(arg_type, type) and issubclass(arg_type, BaseModel):
                     args[k] = arg_type(**v.value)
                 else:
                     args[k] = v.value
@@ -250,7 +250,7 @@ class FunctionConnector(Connector[Configuration, State]):
             if operation.arguments:
                 for k, v in operation.arguments.items():
                     arg_type = signature.parameters[k].annotation
-                    if issubclass(arg_type, BaseModel):
+                    if isinstance(arg_type, type) and issubclass(arg_type, BaseModel):
                         args[k] = arg_type(**v)
                     else:
                         args[k] = v
