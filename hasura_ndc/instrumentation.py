@@ -33,7 +33,7 @@ def init_telemetry(default_service_name="hasura-ndc", default_endpoint="http://l
         raise Exception("Telemetry has already been initialized!")
 
     service_name = os.environ.get("OTEL_SERVICE_NAME", default_service_name)
-    endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", default_endpoint)
+    endpoint = os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", default_endpoint)
 
     resource = Resource.create(attributes={"service.name": service_name})
 
