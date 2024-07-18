@@ -1,12 +1,14 @@
 from hasura_ndc.connector import Connector
 from hasura_ndc.main import start
 from hasura_ndc.models import *
-from hasura_ndc.instrumentation import with_active_span
-from opentelemetry.trace import get_tracer
 from pydantic import BaseModel
 import inspect
 import asyncio
-from typing import Optional
+from typing import Optional, get_origin, get_args, Union
+import types
+
+class HeaderMap(dict):
+    pass
 
 
 class Configuration(BaseModel):
@@ -76,17 +78,7 @@ class FunctionConnector(Connector[Configuration, State]):
     async def get_schema(self, configuration: Configuration) -> SchemaResponse:
         functions = []
         procedures = []
-
-        for name, func in self.query_functions.items():
-            function_info = self.generate_function_info(name, func)
-            functions.append(function_info)
-
-        for name, func in self.mutation_functions.items():
-            procedure_info = self.generate_procedure_info(name, func)
-            procedures.append(procedure_info)
-
-        schema_response = SchemaResponse(
-            scalar_types={
+        scalar_types = {
                 "String": ScalarType(
                     representation=StringType(type="string"),
                     aggregate_functions={},
@@ -107,46 +99,69 @@ class FunctionConnector(Connector[Configuration, State]):
                     aggregate_functions={},
                     comparison_operators={}
                 ),
-            },
+                "Json": ScalarType(
+                    representation=JsonType(type="json"),
+                    aggregate_functions={},
+                    comparison_operators={}
+                ),
+                "HeaderMap": ScalarType(
+                    representation=JsonType(type="json"),
+                    aggregate_functions={},
+                    comparison_operators={}
+                )
+            }
+        object_types = {}
+        for name, func in self.query_functions.items():
+            function_info = self.generate_function_info(name, func, object_types)
+            functions.append(function_info)
+
+        for name, func in self.mutation_functions.items():
+            procedure_info = self.generate_procedure_info(name, func, object_types)
+            procedures.append(procedure_info)
+
+        schema_response = SchemaResponse(
+            scalar_types=scalar_types,
             functions=functions,
             procedures=procedures,
-            object_types={},
+            object_types=object_types,
             collections=[]
         )
+
         return schema_response
 
-    def generate_function_info(self, name, func):
+    def generate_function_info(self, name, func, object_types):
         signature = inspect.signature(func)
-        arguments = {
-            arg_name: {
-                "type": self.get_type_info(arg_type)
-            }
-            for arg_name, arg_type in signature.parameters.items()
-        }
+        arguments = {}
+        for arg_name, arg_type in signature.parameters.items():
+            if arg_type.annotation != HeaderMap:
+                arguments[arg_name] = {
+                    "type": self.get_type_info(arg_type, name, object_types, arg_name)
+                }
         return FunctionInfo(
             name=name,
             arguments=arguments,
-            result_type=self.get_type_info(signature.return_annotation)
+            result_type=self.get_type_info(signature.return_annotation, name, object_types, "result")
         )
 
-    def generate_procedure_info(self, name, func):
+    def generate_procedure_info(self, name, func, object_types):
         signature = inspect.signature(func)
-        arguments = {
-            arg_name: {
-                "type": self.get_type_info(arg_type)
-            }
-            for arg_name, arg_type in signature.parameters.items()
-        }
+        arguments = {}
+        for arg_name, arg_type in signature.parameters.items():
+            if arg_type.annotation != HeaderMap:
+                arguments[arg_name] = {
+                    "type": self.get_type_info(arg_type, name, object_types, arg_name)
+                }
         return ProcedureInfo(
             name=name,
             arguments=arguments,
-            result_type=self.get_type_info(signature.return_annotation)
+            result_type=self.get_type_info(signature.return_annotation, name, object_types, "result")
         )
 
     @staticmethod
-    def get_type_info(typ):
+    def get_type_info(typ, caller_name, object_types, arg_name=None):
         if isinstance(typ, inspect.Parameter):
             typ = typ.annotation
+        # If the type is an array we should return a ArrayType with the underlying type
         if typ == int:
             res = NamedType(type="named", name="Int")
         elif typ == float:
@@ -155,8 +170,39 @@ class FunctionConnector(Connector[Configuration, State]):
             res = NamedType(type="named", name="String")
         elif typ == bool:
             res = NamedType(type="named", name="Boolean")
+        elif typ == inspect._empty:
+            res = NamedType(type="named", name="Json")
+        elif typ == list or get_origin(typ) == list:
+            if typ == list:
+                res = ArrayType(type="array", element_type=NamedType(type="named", name="Json"))              
+            elif len(typ.__args__) == 0:
+                res = ArrayType(type="array", element_type=NamedType(type="named", name="Json"))
+            else:
+                res = ArrayType(type="array", element_type=FunctionConnector.get_type_info(typ.__args__[0], f"{caller_name}_{arg_name}", object_types, "array"))
+        elif get_origin(typ) in (Union, types.UnionType) and type(None) in get_args(typ):
+            args = get_args(typ)
+            non_none_types = [t for t in args if t != type(None)]
+            if len(non_none_types) == 1:
+                res = NullableType(type="nullable", underlying_type=FunctionConnector.get_type_info(non_none_types[0], f"{caller_name}_{arg_name}", object_types, "nullable"))
+            else:
+                res = NullableType(type="nullable", underlying_type=NamedType(type="named", name="Json"))
+        elif issubclass(typ, BaseModel):
+            model_name = f"{caller_name}_{arg_name}"
+            if model_name not in object_types:
+                fields = {}
+                for name, field in typ.model_fields.items():
+                    field_type = FunctionConnector.get_type_info(field.annotation, model_name, object_types, name)
+                    fields[name] = ObjectField(
+                        type=field_type,
+                        description=field.description
+                    )
+                object_types[model_name] = ObjectType(
+                    description=typ.__doc__,
+                    fields=fields
+                )
+            res = NamedType(type="named", name=model_name)
         else:
-            res = NamedType(type="named", name=typ.__name__)
+            res = NamedType(type="named", name="Json")
         return res
 
     async def query(self, configuration: Configuration, state: State, request: QueryRequest) -> QueryResponse:
@@ -165,7 +211,7 @@ class FunctionConnector(Connector[Configuration, State]):
             if v.type == "literal":
                 args[k] = v.value
             elif v.type == "variable":
-                args[k] = request.variables[v.name]
+                raise Exception("Variable not supported yet")
 
         func = self.query_functions[request.collection]
 
@@ -194,7 +240,10 @@ class FunctionConnector(Connector[Configuration, State]):
             operation_name = operation.name
             func = self.mutation_functions[operation_name]
             args = operation.arguments if operation.arguments else {}
-            response = func(**args)
+            if asyncio.iscoroutinefunction(func):
+                response = await func(**args)
+            else:
+                response = func(**args)
             responses.append(response)
         return MutationResponse(
             operation_results=[

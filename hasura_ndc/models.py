@@ -3,6 +3,9 @@ from typing import List, Dict, Optional, Literal, Any
 from pydantic import BaseModel
 from pydantic import Field as PydanticField
 from typing_extensions import Annotated
+import warnings
+
+warnings.filterwarnings("ignore", message="Field name .* shadows an attribute in parent .*")
 
 
 class RootModel(BaseModel):
