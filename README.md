@@ -1,15 +1,18 @@
-Hasura Python SDK
+# Hasura Python SDK
 
-pip3 install hasura_ndc
+To install the library you can use:
 
-Work in progress
+`pip3 install hasura-ndc`
 
-python3 main.py serve --configuration config.json --port 8101 --service-token-secret secret
+Python developers can use this SDK to create Hasura Data Connectors using the Python programming language.
 
-python3 main.py configuration serve --port 9101
+You would be interested in this repository if you wanted to write your own Hasura data connector in Python that wrapped a database or custom data-source.
 
+Included in this SDK is an implementation of a Lambda connector, called a FunctionConnector. If you wanted to simply write Python code you'd likely be more interested in the Python Lambda connector which makes use of this, and you can find that repo here: https://github.com/hasura/ndc-python-lambda
 
-Upload to pypi:
+Developer notes:
+
+To upload a new version of the Hasura SDK to pypi:
 
 python3 setup.py sdist
 

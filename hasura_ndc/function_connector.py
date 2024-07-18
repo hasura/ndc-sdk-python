@@ -207,13 +207,19 @@ class FunctionConnector(Connector[Configuration, State]):
 
     async def query(self, configuration: Configuration, state: State, request: QueryRequest) -> QueryResponse:
         args = {}
+        func = self.query_functions[request.collection]
+        signature = inspect.signature(func)
+
         for k, v in request.arguments.items():
             if v.type == "literal":
-                args[k] = v.value
+                arg_type = signature.parameters[k].annotation
+                if issubclass(arg_type, BaseModel):
+                    args[k] = arg_type(**v.value)
+                else:
+                    args[k] = v.value
             elif v.type == "variable":
                 raise Exception("Variable not supported yet")
 
-        func = self.query_functions[request.collection]
 
         if asyncio.iscoroutinefunction(func):
             result = await func(**args)
@@ -239,7 +245,15 @@ class FunctionConnector(Connector[Configuration, State]):
         for operation in request.operations:
             operation_name = operation.name
             func = self.mutation_functions[operation_name]
-            args = operation.arguments if operation.arguments else {}
+            signature = inspect.signature(func)
+            args = {}
+            if operation.arguments:
+                for k, v in operation.arguments.items():
+                    arg_type = signature.parameters[k].annotation
+                    if issubclass(arg_type, BaseModel):
+                        args[k] = arg_type(**v)
+                    else:
+                        args[k] = v
             if asyncio.iscoroutinefunction(func):
                 response = await func(**args)
             else:
