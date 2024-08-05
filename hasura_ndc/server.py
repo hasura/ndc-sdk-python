@@ -119,6 +119,6 @@ async def start_server(connector: Connector[ConfigurationType, StateType],
             }
         )
 
-    config = uvicorn.Config(app, host="0.0.0.0", port=options.port, loop="asyncio")
+    config = uvicorn.Config(app, host=None, port=options.port, loop="asyncio")
     server = uvicorn.Server(config)
     await server.serve()
