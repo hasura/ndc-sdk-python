@@ -35,7 +35,7 @@ class FunctionConnector(Connector[Configuration, State]):
 
     async def get_capabilities(self, configuration: Configuration) -> CapabilitiesResponse:
         return CapabilitiesResponse(
-            version="^0.1.0",
+            version="0.1.5",
             capabilities=Capabilities(
                 query=QueryCapabilities(
                     aggregates=LeafCapability(),
