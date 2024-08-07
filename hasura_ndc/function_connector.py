@@ -111,7 +111,7 @@ class FunctionConnector(Connector[Configuration, State]):
                 )
             }
         object_types = {}
-        for name, func in self.query_functions.items():
+        for name, (func, _parallel_degree) in self.query_functions.items():
             function_info = self.generate_function_info(name, func, object_types)
             functions.append(function_info)
 
