@@ -206,36 +206,57 @@ class FunctionConnector(Connector[Configuration, State]):
         return res
 
     async def query(self, configuration: Configuration, state: State, request: QueryRequest) -> QueryResponse:
-        args = {}
-        func = self.query_functions[request.collection]
+        func, parallel_degree = self.query_functions[request.collection]
         signature = inspect.signature(func)
-
+        
+        root_args = {}
+        root_vars = {}
         for k, v in request.arguments.items():
             if v.type == "literal":
                 arg_type = signature.parameters[k].annotation
                 if isinstance(arg_type, type) and issubclass(arg_type, BaseModel):
-                    args[k] = arg_type(**v.value)
+                    root_args[k] = arg_type(**v.value)
                 else:
-                    args[k] = v.value
+                    root_args[k] = v.value
             elif v.type == "variable":
-                raise Exception("Variable not supported yet")
+                root_vars[k] = v.name
 
-
-        if asyncio.iscoroutinefunction(func):
-            result = await func(**args)
+        args_array = []
+        if request.variables:
+            for var in request.variables:
+                var_args = {}
+                for var_key, var_name in root_vars.items():
+                    var_args[var_key] = var[var_name]
+                args_array.append({
+                    **var_args,
+                    **root_args
+                })
         else:
-            result = func(**args)
-        
-        return [
-            RowSet(
+            args_array = [root_args]
+
+
+        async def process_args(args):
+            if asyncio.iscoroutinefunction(func):
+                result = await func(**args)
+            else:
+                result = func(**args)
+            return RowSet(
                 aggregates=None,
                 rows=[
-                    {
-                        "__value": result
-                    }
+                    {"__value": result}
                 ]
             )
-        ]
+
+        async def process_batch(batch):
+            return await asyncio.gather(*[process_args(args) for args in batch])
+
+        row_sets = []
+        for i in range(0, len(args_array), parallel_degree):
+            batch = args_array[i:i + parallel_degree]
+            batch_results = await process_batch(batch)
+            row_sets.extend(batch_results)
+
+        return row_sets
 
     async def mutation(self, 
                        configuration: Configuration,
@@ -268,9 +289,16 @@ class FunctionConnector(Connector[Configuration, State]):
             ]
         )
 
-    def register_query(self, func):
-        self.query_functions[func.__name__] = func
-        return func
+    def register_query(self, func=None, *, parallel_degree=1):
+        
+        def decorator(f):
+            self.query_functions[f.__name__] = (f, parallel_degree)
+            return f
+        
+        if func is None:
+            return decorator
+        else:
+            return decorator(func)
 
     def register_mutation(self, func):
         self.mutation_functions[func.__name__] = func
