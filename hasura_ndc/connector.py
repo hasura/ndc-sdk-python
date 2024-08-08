@@ -2,7 +2,7 @@ from typing import Generic, TypeVar, Any
 from typing import Optional
 from abc import ABC, abstractmethod
 from hasura_ndc.models import (
-    CapabilitiesResponse,
+    Capabilities,
     SchemaResponse,
     QueryRequest,
     QueryResponse,
@@ -35,11 +35,11 @@ class Connector(ABC, Generic[ConfigurationType, StateType]):
         pass
 
     @abstractmethod
-    async def health_check(self, configuration: ConfigurationType, state: StateType) -> Optional[Any]:
+    async def get_health_readiness(self, configuration: ConfigurationType, state: StateType) -> Optional[Any]:
         pass
 
     @abstractmethod
-    def get_capabilities(self, configuration: ConfigurationType) -> CapabilitiesResponse:
+    def get_capabilities(self, configuration: ConfigurationType) -> Capabilities:
         pass
 
     @abstractmethod

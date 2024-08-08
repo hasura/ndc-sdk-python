@@ -7,7 +7,7 @@ from typing import Any
 import uvicorn
 from hasura_ndc.connector import Connector, ConfigurationType, StateType
 from hasura_ndc.models import (CapabilitiesResponse, SchemaResponse, QueryResponse, ExplainResponse, MutationResponse,
-                               QueryRequest, MutationRequest)
+                               QueryRequest, MutationRequest, VERSION)
 from opentelemetry import trace
 import hasura_ndc.instrumentation as instrumentation
 from hasura_ndc.errors import ConnectorError
@@ -41,18 +41,22 @@ async def start_server(connector: Connector[ConfigurationType, StateType],
 
     @app.middleware("http")
     async def bypass_api_key_for_docs(request: Request, call_next):
-        if request.url.path in ["/docs", "/openapi.json", "/redoc"]:
+        if request.url.path in ["/docs", "/openapi.json", "/redoc", "/health"]:
             return await call_next(request)
         await get_api_key(request.headers.get("Authorization"))
         return await call_next(request)
 
     @app.get("/capabilities")
     async def get_capabilities() -> CapabilitiesResponse:
-        return await connector.get_capabilities(configuration)
+        capabilities = await connector.get_capabilities(configuration)
+        return CapabilitiesResponse(
+            version=VERSION,
+            capabilities=capabilities
+        )
 
     @app.get("/health")
-    async def health_check() -> Any:
-        return await connector.health_check(configuration, state)
+    async def get_health_readiness() -> Any:
+        return await connector.get_health_readiness(configuration, state)
 
     @app.get("/metrics")
     async def fetch_metrics() -> Any:

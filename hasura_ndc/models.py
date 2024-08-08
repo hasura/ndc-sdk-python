@@ -596,3 +596,5 @@ class ValidateResponse(RootModel):
     schema: SchemaResponse
     capabilities: CapabilitiesResponse
     resolved_configuration: str
+
+VERSION = "0.1.5"

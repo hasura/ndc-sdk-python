@@ -33,10 +33,8 @@ class FunctionConnector(Connector[Configuration, State]):
     async def try_init_state(self, configuration: Configuration, metrics: Any) -> State:
         return State()
 
-    async def get_capabilities(self, configuration: Configuration) -> CapabilitiesResponse:
-        return CapabilitiesResponse(
-            version="0.1.5",
-            capabilities=Capabilities(
+    async def get_capabilities(self, configuration: Configuration) -> Capabilities:
+        return Capabilities(
                 query=QueryCapabilities(
                     aggregates=LeafCapability(),
                     variables=LeafCapability(),
@@ -51,7 +49,6 @@ class FunctionConnector(Connector[Configuration, State]):
                     order_by_aggregate=LeafCapability()
                 )
             )
-        )
 
     async def query_explain(self,
                             configuration: Configuration,
@@ -70,7 +67,7 @@ class FunctionConnector(Connector[Configuration, State]):
                             state: State) -> Optional[None]:
         pass
 
-    async def health_check(self,
+    async def get_health_readiness(self,
                            configuration: Configuration,
                            state: State) -> Optional[None]:
         pass
