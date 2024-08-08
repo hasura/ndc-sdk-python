@@ -1,6 +1,7 @@
-from fastapi import FastAPI, status, Request, Response, Depends
+from fastapi import FastAPI, Request, Depends
 from fastapi.security import APIKeyHeader
 from fastapi.exceptions import HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Any
 import uvicorn
@@ -9,6 +10,7 @@ from hasura_ndc.models import (CapabilitiesResponse, SchemaResponse, QueryRespon
                                QueryRequest, MutationRequest)
 from opentelemetry import trace
 import hasura_ndc.instrumentation as instrumentation
+from hasura_ndc.errors import ConnectorError
 
 tracer = trace.get_tracer("ndc-sdk-python.server")
 
@@ -111,13 +113,22 @@ async def start_server(connector: Connector[ConfigurationType, StateType],
 
     @app.exception_handler(Exception)
     async def http_exception_handler(_: Request, e: Exception):
-        return Response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={
-                "message": str(e),
-                "details": {}
-            }
-        )
+        if isinstance(e, ConnectorError):
+            return JSONResponse(
+                status_code=e.status_code,
+                content={
+                    "message": str(e.message),
+                    "details": e.details if hasattr(e, 'details') else {}
+                }
+            )
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "message": str(e),
+                    "details": {}
+                }
+            )
 
     config = uvicorn.Config(app, host=None, port=options.port, loop="asyncio")
     server = uvicorn.Server(config)
