@@ -202,6 +202,39 @@ class FunctionConnector(Connector[Configuration, State]):
             res = NamedType(type="named", name="Json")
         return res
 
+    @staticmethod
+    def reshape_result(result, requested_fields):
+        def reshape_value(value, fields):
+            if isinstance(fields, NestedArray):
+                if isinstance(value, list):
+                    return [reshape_value(item, fields.fields) for item in value]
+                else:
+                    return reshape_value(value, fields.fields)
+            elif isinstance(fields, NestedObject):
+                return reshape_object(value, fields.fields)
+            elif isinstance(fields, ColumnField):
+                if fields.fields:
+                    return reshape_value(getattr(value, fields.column), fields.fields)
+                else:
+                    return getattr(value, fields.column)
+            else:
+                return value
+
+        def reshape_object(obj, fields):
+            reshaped = {}
+            for field_alias, field in fields.items():
+                if isinstance(field, ColumnField):
+                    value = getattr(obj, field.column)
+                    if field.fields:
+                        reshaped[field_alias] = reshape_value(value, field.fields)
+                    else:
+                        reshaped[field_alias] = value
+                elif isinstance(field, (NestedObject, NestedArray)):
+                    reshaped[field_alias] = reshape_value(getattr(obj, field_alias), field)
+            return reshaped
+
+        return reshape_value(result, requested_fields)
+
     async def query(self, configuration: Configuration, state: State, request: QueryRequest) -> QueryResponse:
         func, parallel_degree = self.query_functions[request.collection]
         signature = inspect.signature(func)
@@ -237,10 +270,13 @@ class FunctionConnector(Connector[Configuration, State]):
                 result = await func(**args)
             else:
                 result = func(**args)
+
+            reshaped_result = FunctionConnector.reshape_result(result, request.query.fields["__value"].fields)
+            
             return RowSet(
                 aggregates=None,
                 rows=[
-                    {"__value": result}
+                    {"__value": reshaped_result}
                 ]
             )
 
@@ -276,7 +312,8 @@ class FunctionConnector(Connector[Configuration, State]):
                 response = await func(**args)
             else:
                 response = func(**args)
-            responses.append(response)
+            reshaped_response = FunctionConnector.reshape_result(response, operation.fields)
+            responses.append(reshaped_response)
         return MutationResponse(
             operation_results=[
                 MutationOperationResults(
