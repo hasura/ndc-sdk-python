@@ -31,7 +31,7 @@ async def start_server(connector: Connector[ConfigurationType, StateType],
     state = await connector.try_init_state(configuration, metrics)
 
     async def get_api_key(header: str = Depends(api_key_header)):
-        match_value = f"{options.service_token_secret}" if options.service_token_secret else None
+        match_value = f"Bearer {options.service_token_secret}" if options.service_token_secret else None
         if header == match_value:
             return header
         else:
