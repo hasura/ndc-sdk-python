@@ -6,7 +6,7 @@ with open('README.md', encoding='utf-8') as f:
 
 setup(
     name='hasura_ndc',
-    version='0.27',
+    version='0.28',
     packages=find_packages(),
     install_requires=[
         # This line reads the requirements from your `requirements.txt`

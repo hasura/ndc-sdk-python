@@ -37,16 +37,9 @@ async def start_server(connector: Connector[ConfigurationType, StateType],
         else:
             raise HTTPException(status_code=403, detail="Invalid API Key")
 
-    app = FastAPI(dependencies=[Depends(get_api_key)])
+    app = FastAPI()
 
-    @app.middleware("http")
-    async def bypass_api_key_for_docs(request: Request, call_next):
-        if request.url.path in ["/docs", "/openapi.json", "/redoc", "/health"]:
-            return await call_next(request)
-        await get_api_key(request.headers.get("Authorization"))
-        return await call_next(request)
-
-    @app.get("/capabilities")
+    @app.get("/capabilities", dependencies=[Depends(get_api_key)])
     async def get_capabilities() -> CapabilitiesResponse:
         capabilities = await connector.get_capabilities(configuration)
         return CapabilitiesResponse(
@@ -58,11 +51,11 @@ async def start_server(connector: Connector[ConfigurationType, StateType],
     async def get_health_readiness() -> Any:
         return await connector.get_health_readiness(configuration, state)
 
-    @app.get("/metrics")
+    @app.get("/metrics", dependencies=[Depends(get_api_key)])
     async def fetch_metrics() -> Any:
         return await connector.fetch_metrics(configuration, state)
 
-    @app.get("/schema")
+    @app.get("/schema", dependencies=[Depends(get_api_key)])
     async def get_schema(request: Request) -> SchemaResponse:
         return await instrumentation.with_active_span(
             tracer,
@@ -71,7 +64,7 @@ async def start_server(connector: Connector[ConfigurationType, StateType],
             headers=dict(request.headers)
         )
 
-    @app.post("/query")
+    @app.post("/query", dependencies=[Depends(get_api_key)])
     async def execute_query(request: Request) -> QueryResponse:
         headers = dict(request.headers)
         request_data = await request.json()
@@ -82,18 +75,18 @@ async def start_server(connector: Connector[ConfigurationType, StateType],
             headers=headers
         )
 
-    @app.post("/query/explain")
+    @app.post("/query/explain", dependencies=[Depends(get_api_key)])
     async def query_explain(request: Request) -> ExplainResponse:
         headers = dict(request.headers)
         request_data = await request.json()
         return await instrumentation.with_active_span(
             tracer,
             "query_explain",
-            lambda span: connector.query(configuration, state, QueryRequest(**request_data)),
+            lambda span: connector.query_explain(configuration, state, QueryRequest(**request_data)),
             headers=headers
         )
 
-    @app.post("/mutation")
+    @app.post("/mutation", dependencies=[Depends(get_api_key)])
     async def execute_mutation(request: Request) -> MutationResponse:
         headers = dict(request.headers)
         request_data = await request.json()
@@ -104,7 +97,7 @@ async def start_server(connector: Connector[ConfigurationType, StateType],
             headers=headers
         )
 
-    @app.post("/mutation/explain")
+    @app.post("/mutation/explain", dependencies=[Depends(get_api_key)])
     async def mutation_explain(request: Request) -> ExplainResponse:
         headers = dict(request.headers)
         request_data = await request.json()
