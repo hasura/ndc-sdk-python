@@ -244,8 +244,12 @@ class FunctionConnector(Connector[Configuration, State]):
         for k, v in request.arguments.items():
             if v.type == "literal":
                 arg_type = signature.parameters[k].annotation
-                if isinstance(arg_type, type) and issubclass(arg_type, BaseModel):
-                    root_args[k] = arg_type(**v.value)
+                if isinstance(arg_type, type) or (get_origin(arg_type) is not None):
+                    actual_type = get_origin(arg_type) or arg_type
+                    if issubclass(actual_type, BaseModel):
+                        root_args[k] = actual_type(**v.value)
+                    else:
+                        root_args[k] = v.value
                 else:
                     root_args[k] = v.value
             elif v.type == "variable":
@@ -304,8 +308,12 @@ class FunctionConnector(Connector[Configuration, State]):
             if operation.arguments:
                 for k, v in operation.arguments.items():
                     arg_type = signature.parameters[k].annotation
-                    if isinstance(arg_type, type) and issubclass(arg_type, BaseModel):
-                        args[k] = arg_type(**v)
+                    if isinstance(arg_type, type) or (get_origin(arg_type) is not None):
+                        actual_type = get_origin(arg_type) or arg_type
+                        if issubclass(actual_type, BaseModel):
+                            args[k] = actual_type(**v)
+                        else:
+                            args[k] = v
                     else:
                         args[k] = v
             if asyncio.iscoroutinefunction(func):
