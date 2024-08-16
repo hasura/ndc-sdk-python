@@ -43,10 +43,6 @@ class FunctionConnector(Connector[Configuration, State]):
                 mutation=MutationCapabilities(
                     transactional=LeafCapability(),
                     explain=None
-                ),
-                relationships=RelationshipCapabilities(
-                    relation_comparisons=LeafCapability(),
-                    order_by_aggregate=LeafCapability()
                 )
             )
 
