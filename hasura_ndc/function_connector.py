@@ -231,6 +231,24 @@ class FunctionConnector(Connector[Configuration, State]):
 
         return reshape_value(result, requested_fields)
 
+    @staticmethod
+    def cast_to_type(value, target_type):
+        origin = get_origin(target_type)
+        if origin == list:
+            args = get_args(target_type)
+            if len(args) == 1:
+                element_type = args[0]
+                return [FunctionConnector.cast_to_type(item, element_type) for item in value]
+            else:
+                return value  # If it's List without type argument, return as is
+        elif origin is not None and issubclass(origin, BaseModel):
+            return origin(**value)
+        elif inspect.isclass(target_type) and issubclass(target_type, BaseModel):
+            return target_type(**value)
+        else:
+            return value
+
+
     async def query(self, configuration: Configuration, state: State, request: QueryRequest) -> QueryResponse:
         func, parallel_degree = self.query_functions[request.collection]
         signature = inspect.signature(func)
@@ -241,11 +259,7 @@ class FunctionConnector(Connector[Configuration, State]):
             if v.type == "literal":
                 arg_type = signature.parameters[k].annotation
                 if isinstance(arg_type, type) or (get_origin(arg_type) is not None):
-                    actual_type = get_origin(arg_type) or arg_type
-                    if issubclass(actual_type, BaseModel):
-                        root_args[k] = actual_type(**v.value)
-                    else:
-                        root_args[k] = v.value
+                    root_args[k] = self.cast_to_type(v.value, arg_type)
                 else:
                     root_args[k] = v.value
             elif v.type == "variable":
@@ -256,7 +270,8 @@ class FunctionConnector(Connector[Configuration, State]):
             for var in request.variables:
                 var_args = {}
                 for var_key, var_name in root_vars.items():
-                    var_args[var_key] = var[var_name]
+                    arg_type = signature.parameters[var_key].annotation
+                    var_args[var_key] = self.cast_to_type(var[var_name], arg_type)
                 args_array.append({
                     **var_args,
                     **root_args
@@ -304,14 +319,7 @@ class FunctionConnector(Connector[Configuration, State]):
             if operation.arguments:
                 for k, v in operation.arguments.items():
                     arg_type = signature.parameters[k].annotation
-                    if isinstance(arg_type, type) or (get_origin(arg_type) is not None):
-                        actual_type = get_origin(arg_type) or arg_type
-                        if issubclass(actual_type, BaseModel):
-                            args[k] = actual_type(**v)
-                        else:
-                            args[k] = v
-                    else:
-                        args[k] = v
+                    args[k] = self.cast_to_type(v, arg_type)
             if asyncio.iscoroutinefunction(func):
                 response = await func(**args)
             else:
