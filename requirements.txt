@@ -9,11 +9,13 @@ fastapi==0.110.2
 googleapis-common-protos==1.63.0
 grpcio==1.62.2
 h11==0.14.0
+hasura-ndc==0.31
 idna==3.7
 importlib-metadata==7.0.0
 opentelemetry-api==1.24.0
 opentelemetry-exporter-otlp-proto-common==1.24.0
 opentelemetry-exporter-otlp-proto-grpc==1.24.0
+opentelemetry-exporter-otlp-proto-http==1.24.0
 opentelemetry-instrumentation==0.45b0
 opentelemetry-instrumentation-asgi==0.45b0
 opentelemetry-instrumentation-fastapi==0.45b0
@@ -33,5 +35,6 @@ starlette==0.37.2
 typing_extensions==4.11.0
 urllib3==2.2.1
 uvicorn==0.29.0
+watchdog==4.0.1
 wrapt==1.16.0
 zipp==3.18.1
