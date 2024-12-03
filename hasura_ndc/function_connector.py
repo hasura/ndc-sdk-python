@@ -234,7 +234,15 @@ class FunctionConnector(Connector[Configuration, State]):
     @staticmethod
     def cast_to_type(value, target_type):
         origin = get_origin(target_type)
-        if origin == list:
+        if origin == types.UnionType:
+            args = get_args(target_type)
+            if types.NoneType in args and len(args) == 2:
+                # target type is just a nullable type
+                if value is None:
+                    return None
+                other_type = next(t for t in args if t is not types.NoneType)
+                return FunctionConnector.cast_to_type(value, other_type)
+        elif origin == list:
             args = get_args(target_type)
             if len(args) == 1:
                 element_type = args[0]
