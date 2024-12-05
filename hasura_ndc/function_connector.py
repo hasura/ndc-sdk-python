@@ -130,10 +130,16 @@ class FunctionConnector(Connector[Configuration, State]):
                 arguments[arg_name] = {
                     "type": self.get_type_info(arg_type, name, object_types, arg_name)
                 }
+        
+        description = None
+        if func.__doc__:
+            description = func.__doc__.strip()
+
         return FunctionInfo(
             name=name,
             arguments=arguments,
-            result_type=self.get_type_info(signature.return_annotation, name, object_types, "result")
+            result_type=self.get_type_info(signature.return_annotation, name, object_types, None),
+            description=description
         )
 
     def generate_procedure_info(self, name, func, object_types):
@@ -144,10 +150,16 @@ class FunctionConnector(Connector[Configuration, State]):
                 arguments[arg_name] = {
                     "type": self.get_type_info(arg_type, name, object_types, arg_name)
                 }
+
+        description = None
+        if func.__doc__:
+            description = func.__doc__.strip()
+        
         return ProcedureInfo(
             name=name,
             arguments=arguments,
-            result_type=self.get_type_info(signature.return_annotation, name, object_types, "result")
+            result_type=self.get_type_info(signature.return_annotation, name, object_types, None),
+            description=description
         )
 
     @staticmethod
@@ -171,16 +183,24 @@ class FunctionConnector(Connector[Configuration, State]):
             elif len(typ.__args__) == 0:
                 res = ArrayType(type="array", element_type=NamedType(type="named", name="Json"))
             else:
-                res = ArrayType(type="array", element_type=FunctionConnector.get_type_info(typ.__args__[0], f"{caller_name}_{arg_name}", object_types, "array"))
+                model_name = f"{caller_name}"
+                if arg_name:
+                    model_name = f"{caller_name}_{arg_name}"
+                res = ArrayType(type="array", element_type=FunctionConnector.get_type_info(typ.__args__[0], model_name, object_types, None))
         elif get_origin(typ) in (Union, types.UnionType) and type(None) in get_args(typ):
             args = get_args(typ)
             non_none_types = [t for t in args if t != type(None)]
             if len(non_none_types) == 1:
-                res = NullableType(type="nullable", underlying_type=FunctionConnector.get_type_info(non_none_types[0], f"{caller_name}_{arg_name}", object_types, "nullable"))
+                model_name = f"{caller_name}"
+                if arg_name:
+                    model_name = f"{caller_name}_{arg_name}"
+                res = NullableType(type="nullable", underlying_type=FunctionConnector.get_type_info(non_none_types[0], model_name, object_types, None))
             else:
                 res = NullableType(type="nullable", underlying_type=NamedType(type="named", name="Json"))
         elif issubclass(typ, BaseModel):
-            model_name = f"{caller_name}_{arg_name}"
+            model_name = f"{caller_name}"
+            if arg_name:
+                model_name = f"{caller_name}_{arg_name}"
             if model_name not in object_types:
                 fields = {}
                 for name, field in typ.model_fields.items():
@@ -201,6 +221,9 @@ class FunctionConnector(Connector[Configuration, State]):
     @staticmethod
     def reshape_result(result, requested_fields):
         def reshape_value(value, fields):
+            if value is None:
+                return None
+
             if isinstance(fields, NestedArray):
                 if isinstance(value, list):
                     return [reshape_value(item, fields.fields) for item in value]
@@ -217,6 +240,9 @@ class FunctionConnector(Connector[Configuration, State]):
                 return value
 
         def reshape_object(obj, fields):
+            if obj is None:
+                return None
+
             reshaped = {}
             for field_alias, field in fields.items():
                 if isinstance(field, ColumnField):
