@@ -127,8 +127,25 @@ class FunctionConnector(Connector[Configuration, State]):
         arguments = {}
         for arg_name, arg_type in signature.parameters.items():
             if arg_type.annotation != HeaderMap:
+
+                arg_description = None
+                if arg_type.default != inspect.Parameter.empty:
+                    if hasattr(arg_type.default, 'description'):
+                        arg_description = arg_type.default.description
+      
+                if arg_description is None:
+                    origin = get_origin(arg_type.annotation)
+                    if origin is Annotated:
+                        args = get_args(arg_type.annotation)
+                        # Look for string descriptions in the metadata
+                        for arg in args[1:]:
+                            if isinstance(arg, str):
+                                arg_description = arg
+                                break
+
                 arguments[arg_name] = {
-                    "type": self.get_type_info(arg_type, name, object_types, arg_name)
+                    "type": self.get_type_info(arg_type, name, object_types, arg_name),
+                    "description": arg_description
                 }
         
         description = None
@@ -147,8 +164,26 @@ class FunctionConnector(Connector[Configuration, State]):
         arguments = {}
         for arg_name, arg_type in signature.parameters.items():
             if arg_type.annotation != HeaderMap:
+
+                arg_description = None
+
+                if arg_type.default != inspect.Parameter.empty:
+                    if hasattr(arg_type.default, 'description'):
+                        arg_description = arg_type.default.description
+
+                if arg_description is None:
+                    origin = get_origin(arg_type.annotation)
+                    if origin is Annotated:
+                        args = get_args(arg_type.annotation)
+                        # Look for string descriptions in the metadata
+                        for arg in args[1:]:
+                            if isinstance(arg, str):
+                                arg_description = arg
+                                break
+
                 arguments[arg_name] = {
-                    "type": self.get_type_info(arg_type, name, object_types, arg_name)
+                    "type": self.get_type_info(arg_type, name, object_types, arg_name),
+                    "description": arg_description
                 }
 
         description = None
@@ -166,6 +201,13 @@ class FunctionConnector(Connector[Configuration, State]):
     def get_type_info(typ, caller_name, object_types, arg_name=None):
         if isinstance(typ, inspect.Parameter):
             typ = typ.annotation
+
+        origin = get_origin(typ)
+        if origin is Annotated:
+            args = get_args(typ)
+            if args:
+                typ = args[0]
+
         # If the type is an array we should return a ArrayType with the underlying type
         if typ == int:
             res = NamedType(type="named", name="Int")
@@ -205,9 +247,22 @@ class FunctionConnector(Connector[Configuration, State]):
                 fields = {}
                 for name, field in typ.model_fields.items():
                     field_type = FunctionConnector.get_type_info(field.annotation, model_name, object_types, name)
+                    
+                    field_description = field.description
+                    if not field_description:
+                        original_annotation = typ.__annotations__.get(name)
+                        if original_annotation:
+                            field_origin = get_origin(original_annotation)
+                            if field_origin is Annotated:
+                                field_args = get_args(original_annotation)
+                                for arg in field_args[1:]:
+                                    if isinstance(arg, str):
+                                        field_description = arg
+                                        break
+
                     fields[name] = ObjectField(
                         type=field_type,
-                        description=field.description
+                        description=field_description
                     )
                 object_types[model_name] = ObjectType(
                     description=typ.__doc__,
