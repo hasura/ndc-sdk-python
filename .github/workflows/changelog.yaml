@@ -1,0 +1,36 @@
+name: check changelog
+
+on:
+  push:
+
+jobs:
+  check-changelog:
+    name: check changelog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: check changelog
+        env:
+          GITHUB_TOKEN: ${{ secrets.HASURA_BOT_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          # Check if the changelog is updated (or 'no-changelog-required' is added)
+          pull_request_number=$(gh pr view --json number -q .number || echo "")
+          if [ -z "$pull_request_number" ]; then
+            echo "This action is intended to be run on a pull request."
+            exit 0
+          fi
+          labels="$(gh api repos/$OWNER/$REPO_NAME/pulls/$pull_request_number --jq '.labels.[].name')"
+          if echo "$labels" | grep -q "no-changelog-required"; then
+            echo "Changelog not required for this PR"
+            exit 0
+          elif git diff origin/main...HEAD --quiet "changelog.md" then
+            echo "Changelog has not been updated. Please update the changelog or add the label 'no-changelog-required' to the PR and rerun."
+            exit 1
+          else
+            echo "Thank you for updating the changelog ❤️❤️❤️"
+          fi
