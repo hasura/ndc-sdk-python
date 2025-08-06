@@ -463,8 +463,8 @@ class QueryCapabilities(RootModel):
     aggregates: Optional['LeafCapability'] = None
     variables: Optional['LeafCapability'] = None
     explain: Optional['LeafCapability'] = None
-    nested_fields: Optional['NestedFieldCapabilities'] = None
-    exists: Optional['ExistsCapabilities'] = None
+    nested_fields: 'NestedFieldCapabilities' 
+    exists: 'ExistsCapabilities' 
 
 
 class MutationCapabilities(RootModel):
