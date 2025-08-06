@@ -38,7 +38,9 @@ class FunctionConnector(Connector[Configuration, State]):
                 query=QueryCapabilities(
                     aggregates=LeafCapability(),
                     variables=LeafCapability(),
-                    explain=LeafCapability()
+                    explain=LeafCapability(),
+                    nested_fields=LeafCapability(),
+                    exists=LeafCapability()
                 ),
                 mutation=MutationCapabilities(
                     transactional=LeafCapability(),
