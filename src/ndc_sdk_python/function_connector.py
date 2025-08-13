@@ -1,6 +1,6 @@
-from hasura_ndc.connector import Connector
-from hasura_ndc.main import start
-from hasura_ndc.models import *
+from ndc_sdk_python.connector import Connector
+from ndc_sdk_python.main import start
+from ndc_sdk_python.models import *
 from pydantic import BaseModel
 import inspect
 import asyncio

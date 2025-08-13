@@ -1,9 +1,9 @@
 import os
 import argparse
 import asyncio
-from hasura_ndc.connector import *
-from hasura_ndc.server import start_server
-import hasura_ndc.instrumentation as instrumentation
+from ndc_sdk_python.connector import *
+from ndc_sdk_python.server import start_server
+import ndc_sdk_python.instrumentation as instrumentation
 
 if not instrumentation.is_initialized():
     instrumentation.init_telemetry()
