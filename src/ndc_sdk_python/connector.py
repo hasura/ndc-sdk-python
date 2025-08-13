@@ -1,7 +1,7 @@
 from typing import Generic, TypeVar, Any
 from typing import Optional
 from abc import ABC, abstractmethod
-from hasura_ndc.models import (
+from ndc_sdk_python.models import (
     Capabilities,
     SchemaResponse,
     QueryRequest,

@@ -5,12 +5,12 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Any
 import uvicorn
-from hasura_ndc.connector import Connector, ConfigurationType, StateType
-from hasura_ndc.models import (CapabilitiesResponse, SchemaResponse, QueryResponse, ExplainResponse, MutationResponse,
+from ndc_sdk_python.connector import Connector, ConfigurationType, StateType
+from ndc_sdk_python.models import (CapabilitiesResponse, SchemaResponse, QueryResponse, ExplainResponse, MutationResponse,
                                QueryRequest, MutationRequest, VERSION)
 from opentelemetry import trace
-import hasura_ndc.instrumentation as instrumentation
-from hasura_ndc.errors import ConnectorError
+import ndc_sdk_python.instrumentation as instrumentation
+from ndc_sdk_python.errors import ConnectorError
 
 tracer = trace.get_tracer("ndc-sdk-python.server")
 

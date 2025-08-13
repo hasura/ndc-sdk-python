@@ -1,6 +1,6 @@
 build/
 dist/
-hasura_ndc.egg-info/
+ndc_sdk_python.egg-info/
 venv/
 .idea/
 .DS_Store
