@@ -1,7 +1,7 @@
 [project]
 name = "ndc-sdk-python"
 version = "0.40.0"
-description = "Add your description here"
+description = "A Python SDK for creating Hasura Native Data Connectors as per the NDC spec"
 readme = "README.md"
 authors = [
     { name = "Daniel Harvey", email = "danieljamesharvey@gmail.com" }
