@@ -8,6 +8,10 @@
 
 ### Fixed
 
+## [v0.40]
+
+- Internal project changes to use `uv`
+
 ## [v0.39]
 
 ### Fixed
@@ -16,6 +20,7 @@
 
 <!-- end -->
 
-[Unreleased]: https://github.com/hasura/ndc-sdk-python/compare/v0.39...HEAD
+[Unreleased]: https://github.com/hasura/ndc-sdk-python/compare/v0.40...HEAD
+[v0.40]: https://github.com/hasura/ndc-sdk-kotlin/releases/tag/v0.40
 [v0.39]: https://github.com/hasura/ndc-sdk-kotlin/releases/tag/v0.39
 [v0.38]: https://github.com/hasura/ndc-sdk-kotlin/releases/tag/v0.38
