@@ -39,8 +39,8 @@ class FunctionConnector(Connector[Configuration, State]):
                     aggregates=LeafCapability(),
                     variables=LeafCapability(),
                     explain=LeafCapability(),
-                    nested_fields=LeafCapability(),
-                    exists=LeafCapability()
+                    nested_fields=NestedFieldCapabilities(),
+                    exists=ExistsCapabilities()
                 ),
                 mutation=MutationCapabilities(
                     transactional=LeafCapability(),
