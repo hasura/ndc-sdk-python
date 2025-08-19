@@ -8,6 +8,12 @@
 
 ### Fixed
 
+## [v0.41]
+
+### Fixed
+
+- Fixes empty capabilities for `exists` and `nested_fields`
+
 ## [v0.40]
 
 - Internal project changes to use `uv`
@@ -20,7 +26,8 @@
 
 <!-- end -->
 
-[Unreleased]: https://github.com/hasura/ndc-sdk-python/compare/v0.40...HEAD
+[Unreleased]: https://github.com/hasura/ndc-sdk-python/compare/v0.41...HEAD
+[v0.41]: https://github.com/hasura/ndc-sdk-kotlin/releases/tag/v0.41
 [v0.40]: https://github.com/hasura/ndc-sdk-kotlin/releases/tag/v0.40
 [v0.39]: https://github.com/hasura/ndc-sdk-kotlin/releases/tag/v0.39
 [v0.38]: https://github.com/hasura/ndc-sdk-kotlin/releases/tag/v0.38
