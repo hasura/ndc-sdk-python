@@ -264,7 +264,8 @@ class FunctionConnector(Connector[Configuration, State]):
 
                     fields[name] = ObjectField(
                         type=field_type,
-                        description=field_description
+                        description=field_description,
+                        arguments={}
                     )
                 object_types[model_name] = ObjectType(
                     description=typ.__doc__,
