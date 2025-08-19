@@ -522,7 +522,7 @@ class ObjectType(RootModel):
 class ObjectField(RootModel):
     description: Optional[str] = None
     type: 'Type'
-    arguments: Optional[Dict[str, 'ArgumentInfo']] = None
+    arguments: Dict[str, 'ArgumentInfo']
 
 
 class CollectionInfo(RootModel):
