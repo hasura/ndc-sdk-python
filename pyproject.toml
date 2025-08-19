@@ -1,6 +1,6 @@
 [project]
 name = "ndc-sdk-python"
-version = "0.41.0"
+version = "0.42.0"
 description = "A Python SDK for creating Hasura Native Data Connectors as per the NDC spec"
 readme = "README.md"
 authors = [

@@ -8,6 +8,10 @@
 
 ### Fixed
 
+## [v0.42]
+
+- Make field `arguments` non-nullable in schema
+
 ## [v0.41]
 
 ### Fixed
@@ -26,7 +30,8 @@
 
 <!-- end -->
 
-[Unreleased]: https://github.com/hasura/ndc-sdk-python/compare/v0.41...HEAD
+[Unreleased]: https://github.com/hasura/ndc-sdk-python/compare/v0.42...HEAD
+[v0.42]: https://github.com/hasura/ndc-sdk-kotlin/releases/tag/v0.42
 [v0.41]: https://github.com/hasura/ndc-sdk-kotlin/releases/tag/v0.41
 [v0.40]: https://github.com/hasura/ndc-sdk-kotlin/releases/tag/v0.40
 [v0.39]: https://github.com/hasura/ndc-sdk-kotlin/releases/tag/v0.39
