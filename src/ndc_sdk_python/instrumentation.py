@@ -21,6 +21,11 @@ from opentelemetry.propagate import get_global_textmap
 from enum import Enum
 import asyncio
 import os
+from pathlib import Path
+from urllib.parse import urlparse
+
+import certifi
+from grpc import ssl_channel_credentials
 
 sdk = None
 
@@ -34,11 +39,49 @@ class Protocol(str, Enum):
     HTTP_PROTOBUF = "http/protobuf"
 
 
+def _grpc_credentials(signal: str, endpoint: str):
+    """Use maintained public roots unless the caller configured custom trust."""
+    signal_prefix = f"OTEL_EXPORTER_OTLP_{signal}"
+    insecure = os.environ.get(
+        f"{signal_prefix}_INSECURE",
+        os.environ.get("OTEL_EXPORTER_OTLP_INSECURE"),
+    )
+    scheme = urlparse(endpoint).scheme
+    if scheme != "https" and (
+        (insecure is not None and insecure.lower() == "true")
+        or (insecure is None and scheme == "http")
+    ):
+        return None
+
+    # Let the exporter/gRPC preserve explicit CA configuration and its precedence.
+    if any(name in os.environ for name in (
+        f"{signal_prefix}_CERTIFICATE",
+        "OTEL_EXPORTER_OTLP_CERTIFICATE",
+        "GRPC_DEFAULT_SSL_ROOTS_FILE_PATH",
+        "OTEL_PYTHON_EXPORTER_OTLP_GRPC_CREDENTIAL_PROVIDER",
+        f"OTEL_PYTHON_EXPORTER_OTLP_GRPC_{signal}_CREDENTIAL_PROVIDER",
+    )):
+        return None
+
+    def client_file(suffix: str):
+        filename = os.environ.get(
+            f"{signal_prefix}_{suffix}",
+            os.environ.get(f"OTEL_EXPORTER_OTLP_{suffix}"),
+        )
+        return Path(filename).read_bytes() if filename else None
+
+    return ssl_channel_credentials(
+        root_certificates=Path(certifi.where()).read_bytes(),
+        private_key=client_file("CLIENT_KEY"),
+        certificate_chain=client_file("CLIENT_CERTIFICATE"),
+    )
+
+
 def get_exporters(protocol: Protocol, endpoint: str):
     """Get the appropriate exporters based on the protocol."""
     if protocol == Protocol.GRPC:
-        trace_exporter = GRPCTraceExporter(endpoint=endpoint)
-        metric_exporter = GRPCMetricExporter(endpoint=endpoint)
+        trace_exporter = GRPCTraceExporter(endpoint=endpoint, credentials=_grpc_credentials("TRACES", endpoint))
+        metric_exporter = GRPCMetricExporter(endpoint=endpoint, credentials=_grpc_credentials("METRICS", endpoint))
     elif protocol == Protocol.HTTP_PROTOBUF:
         # For HTTP/protobuf, we need to append the specific endpoints
         trace_endpoint = f"{endpoint}/v1/traces"
