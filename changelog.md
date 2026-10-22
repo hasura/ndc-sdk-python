@@ -9,6 +9,7 @@
 ### Fixed
 
 - Require certifi 2026.10.19+ for the requests/OTLP HTTPS trust bundle.
+- Use certifi roots for default OTLP/gRPC TLS, which otherwise uses grpcio's separate bundled roots; preserve custom CA configuration and insecure endpoints.
 
 ## [v0.42]
 
