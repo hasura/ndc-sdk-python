@@ -11,7 +11,3 @@ Included in this SDK is an implementation of a Lambda connector, called a Functi
 Developer notes:
 
 This repository uses `uv` to control dependencies. To install dependencies, run `uv sync`.
-
-## TLS security
-
-See [TLS trust requirements](security/README.md) for runtime minimums and consumer rebuild requirements.
